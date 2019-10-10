@@ -254,7 +254,6 @@ class SDExport(object):
             logging.info('Copying file to {}'.format(self.target_dirname))
             subprocess.check_call(["cp", "-r", export_data, target_path])
             logging.info('File copied successfully to {}'.format(self.target_dirname))
-            self.popup_message("Files exported successfully to disk.")
         except (subprocess.CalledProcessError, OSError):
             msg = "ERROR_USB_WRITE"
             self.exit_gracefully(msg)
