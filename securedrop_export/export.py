@@ -169,7 +169,7 @@ class SDExport(object):
         logging.info('Performing usb preflight')
         try:
             subprocess.check_output(
-                ["lsblk", "-p", "-o", "KNAME", DEVICE, "--noheadings", "--inverse"],
+                ["lsblk", "-p", "-o", "KNAME", "--noheadings", "--inverse", DEVICE],
                 stderr=subprocess.PIPE)
             self.exit_gracefully("USB_CONNECTED")
         except subprocess.CalledProcessError:
@@ -180,7 +180,22 @@ class SDExport(object):
         try:
             # cryptsetup isLuks returns 0 if the device is a luks volume
             # subprocess with throw if the device is not luks (rc !=0)
-            subprocess.check_call(["sudo", "cryptsetup", "isLuks", DEVICE])
+            device_and_partition_types = subprocess.check_output(
+                ["lsblk", "-o", "TYPE", "--noheadings", DEVICE], stderr=subprocess.PIPE)
+
+            # we don't support multiple 'PART' partitions
+            type_list = device_and_partition_types.split()
+            if type_list.count('part') > 1:
+                self.exit_gracefully("USB_NO_SUPPORTED_ENCRYPTION")
+
+            # we support full-disk luks encryption where there are 0 partitions
+            # or 1 partition which will be /dev/sda1 instead of /dev/sda
+            if type_list.count('part') == 0:
+                dev = DEVICE
+            else:
+                dev = DEVICE + '1'
+
+            subprocess.check_call(["sudo", "cryptsetup", "isLuks", dev])
             msg = "USB_ENCRYPTED"
             self.exit_gracefully(msg)
         except subprocess.CalledProcessError:
