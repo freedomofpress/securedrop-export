@@ -35,12 +35,8 @@ class ExportStatus(Enum):
     ERROR_USB_CONFIGURATION = 'ERROR_USB_CONFIGURATION'
     ERROR_GENERIC = 'ERROR_GENERIC'
 
-    # USB preflight related errors
-    USB_CONNECTED = 'USB_CONNECTED'
+    # Drive preflight related errors
     USB_NOT_CONNECTED = 'USB_NOT_CONNECTED'
-    ERROR_USB_CHECK = 'ERROR_USB_CHECK'
-
-    # USB Disk preflight related errors
     USB_ENCRYPTED = 'USB_ENCRYPTED'
     USB_ENCRYPTION_NOT_SUPPORTED = 'USB_ENCRYPTION_NOT_SUPPORTED'
     USB_DISK_ERROR = 'USB_DISK_ERROR'
@@ -124,6 +120,7 @@ class SDExport(object):
         self.mountpoint = MOUNTPOINT
         self.encrypted_device = ENCRYPTED_DEVICE
 
+        self.printer_uri = ''
         self.printer_name = PRINTER_NAME
         self.printer_wait_timeout = PRINTER_WAIT_TIMEOUT
 
@@ -193,14 +190,16 @@ class SDExport(object):
             self.exit_gracefully(ExportStatus.ERROR_EXTRACTION.value)
 
     def check_usb_connected(self):
-        # If the USB is not attached via qvm-usb attach, lsusb will return empty string and a
-        # return code of 1
-        logging.info('Performing usb preflight')
+        '''
+        If the device is not connected or listed in the devices file as anything other than sda
+        (where `a` in `sda` signifies the first block device found) then we return
+        ExportStatus.USB_NOT_CONNECTED.value. Otherwise we continue with checking that the device
+        is luks-encrypted
+        '''
         try:
             subprocess.check_output(
                 ["lsblk", "-p", "-o", "KNAME", "--noheadings", "--inverse", DEVICE],
                 stderr=subprocess.PIPE)
-            self.exit_gracefully("USB_CONNECTED")
         except subprocess.CalledProcessError:
             self.exit_gracefully(ExportStatus.USB_NOT_CONNECTED.value)
 
@@ -221,8 +220,13 @@ class SDExport(object):
             self.exit_gracefully(ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value)
 
     def check_luks_volume(self):
-        # cryptsetup isLuks returns 0 if the device is a luks volume
-        # subprocess with throw if the device is not luks (rc !=0)
+        '''
+        If the device is not found then we return an error code. Otherwise we continue with checking
+        that the device is luks-encrypted.
+        '''
+        logging.info('Performing usb preflight')
+        self.check_usb_connected()
+
         logging.info('Checking if volume is luks-encrypted')
         self.set_extracted_device_name()
         logging.debug("checking if {} is luks encrypted".format(self.device))
@@ -331,35 +335,41 @@ class SDExport(object):
                 self.exit_gracefully(ExportStatus.ERROR_PRINT.value)
         return True
 
+    def check_printer_connected(self):
+        self.get_printer_uri()
+
     def get_printer_uri(self):
-        # Get the URI via lpinfo and only accept URIs of supported printers
-        printer_uri = ""
+        '''
+        Check that a Brother printer is connected and return its URI.
+        '''
         try:
-            output = subprocess.check_output(["sudo", "lpinfo", "-v"])
+            output = subprocess.check_output(['sudo', 'lpinfo', '-v'])
+            printer_uri = ''
+            for line in output.split():
+                if 'usb://' in line.decode('utf-8'):
+                    printer_uri = line.decode('utf-8')
+                    logging.info('lpinfo usb printer: {}'.format(printer_uri))
+
+            if printer_uri == '':
+                logging.info('No usb printers connected')
+                self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_FOUND.value)
+            elif "Brother" not in printer_url:
+                logging.info('Printer {} is unsupported'.format(printer_uri))
+                self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_SUPPORTED.value)
+
+            logging.info('Printer {} is supported'.format(printer_uri))
+            return printer_uri
         except subprocess.CalledProcessError:
             self.exit_gracefully(ExportStatus.ERROR_PRINTER_URI.value)
 
-        # fetch the usb printer uri
-        for line in output.split():
-            if "usb://" in line.decode("utf-8"):
-                printer_uri = line.decode("utf-8")
-                logging.info('lpinfo usb printer: {}'.format(printer_uri))
 
-        # verify that the printer is supported, else exit
-        if printer_uri == "":
-            # No usb printer is connected
-            logging.info('No usb printers connected')
-            self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_FOUND.value)
-        elif "Brother" in printer_uri:
-            logging.info('Printer {} is supported'.format(printer_uri))
-            return printer_uri
-        else:
-            # printer url is a make that is unsupported
-            logging.info('Printer {} is unsupported'.format(printer_uri))
-            self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_SUPPORTED.value)
+    def get_printer_ppd(self):
+        '''
+        Compile the ppd for the driver if not already pre-compiled and return the ppd.
 
-    def install_printer_ppd(self, uri):
-        # Some drivers don't come with ppd files pre-compiled, we must compile them
+        Note: This is where we can add support for other printer makes or models in the future.
+        '''
+        uri = self.get_printer_uri()
         if "Brother" in uri:
             self.safe_check_call(
                 command=[
@@ -372,10 +382,11 @@ class SDExport(object):
                 error_message=ExportStatus.ERROR_PRINTER_DRIVER_UNAVAILABLE.value
             )
             return self.brlaser_ppd
-        # Here, we could support ppd drivers for other makes or models in the future
 
-    def setup_printer(self, printer_uri, printer_ppd):
+    def setup_printer(self, printer_ppd):
         # Add the printer using lpadmin
+        printer_uri = self.get_printer_uri()
+        printer_ppd = self.get_printer_ppd()
         self.safe_check_call(
             command=[
                 "sudo",
