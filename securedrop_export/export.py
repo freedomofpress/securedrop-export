@@ -335,9 +335,6 @@ class SDExport(object):
                 self.exit_gracefully(ExportStatus.ERROR_PRINT.value)
         return True
 
-    def check_printer_connected(self):
-        self.get_printer_uri()
-
     def get_printer_uri(self):
         '''
         Check that a Brother printer is connected and return its URI.
@@ -353,7 +350,7 @@ class SDExport(object):
             if printer_uri == '':
                 logging.info('No usb printers connected')
                 self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_FOUND.value)
-            elif "Brother" not in printer_url:
+            elif "Brother" not in printer_uri:
                 logging.info('Printer {} is unsupported'.format(printer_uri))
                 self.exit_gracefully(ExportStatus.ERROR_PRINTER_NOT_SUPPORTED.value)
 
@@ -362,6 +359,8 @@ class SDExport(object):
         except subprocess.CalledProcessError:
             self.exit_gracefully(ExportStatus.ERROR_PRINTER_URI.value)
 
+    def check_printer_connected(self):
+        self.get_printer_uri()
 
     def get_printer_ppd(self):
         '''
