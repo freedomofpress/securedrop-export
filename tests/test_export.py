@@ -140,7 +140,7 @@ def test_get_bad_printer_uri(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = "ERROR_PRINTER_NOT_FOUND"
     assert export.ExportStatus.ERROR_PRINTER_NOT_FOUND.value == expected_message
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
 
     with pytest.raises(SystemExit) as sysexit:
         result = submission.get_printer_uri()
@@ -151,6 +151,8 @@ def test_get_bad_printer_uri(mocked_call, capsys):
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
     assert captured.out == ""
+
+    mocked_exit.stop()
 
 
 @pytest.mark.parametrize('open_office_paths', [
@@ -179,9 +181,10 @@ def test_usb_precheck_disconnected(capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = "USB_NOT_CONNECTED"
     assert export.ExportStatus.USB_NOT_CONNECTED.value == expected_message
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
 
-    mock.patch("subprocess.check_output", return_value=CalledProcessError(1, 'check_output'))
+    mock_subp = mock.patch("subprocess.check_output", 
+        return_value=CalledProcessError(1, 'check_output')).start()
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_usb_connected()
@@ -190,6 +193,9 @@ def test_usb_precheck_disconnected(capsys):
     assert sysexit.value.code == 0
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
+
+    mocked_exit.stop()
+    mock_subp.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_USB)
@@ -197,7 +203,7 @@ def test_usb_precheck_connected(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = "USB_CONNECTED"
     assert export.ExportStatus.USB_CONNECTED.value == expected_message
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
     with pytest.raises(SystemExit) as sysexit:
         submission.check_usb_connected()
         mocked_exit.assert_called_once_with(expected_message)
@@ -205,6 +211,7 @@ def test_usb_precheck_connected(mocked_call, capsys):
     assert sysexit.value.code == 0
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
+    mocked_exit.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_NO_PART)
@@ -224,7 +231,7 @@ def test_extract_device_name_single_part(mocked_call, capsys):
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_MULTI_PART)
 def test_extract_device_name_multiple_part(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
     expected_message = export.ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value
 
     with pytest.raises(SystemExit) as sysexit:
@@ -233,6 +240,7 @@ def test_extract_device_name_multiple_part(mocked_call, capsys):
     assert sysexit.value.code == 0
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
+    mocked_exit.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_NO_PART)
@@ -240,12 +248,13 @@ def test_extract_device_name_multiple_part(mocked_call, capsys):
 def test_luks_precheck_encrypted_fde(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = export.ExportStatus.USB_ENCRYPTED.value
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_luks_volume()
         mocked_exit.assert_called_once_with(expected_message)
     assert sysexit.value.code == 0
+    mocked_exit.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_ONE_PART)
@@ -253,19 +262,20 @@ def test_luks_precheck_encrypted_fde(mocked_call, capsys):
 def test_luks_precheck_encrypted_single_part(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = export.ExportStatus.USB_ENCRYPTED.value
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_luks_volume()
         mocked_exit.assert_called_once_with(expected_message)
     assert sysexit.value.code == 0
+    mocked_exit.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_MULTI_PART)
 def test_luks_precheck_encrypted_multi_part(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = export.ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_luks_volume()
@@ -273,6 +283,7 @@ def test_luks_precheck_encrypted_multi_part(mocked_call, capsys):
     assert sysexit.value.code == 0
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
+    mocked_exit.stop()
 
 
 @mock.patch("subprocess.check_output", return_value=SAMPLE_OUTPUT_ONE_PART)
@@ -280,9 +291,8 @@ def test_luks_precheck_encrypted_luks_error(mocked_call, capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     expected_message = "USB_ENCRYPTION_NOT_SUPPORTED"
     assert expected_message == export.ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
-
-    mock.patch("subprocess.check_call", return_value=CalledProcessError(1, 'check_call'))
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
+    mock_subp = mock.patch("subprocess.check_call", return_value=CalledProcessError(1, 'check_call')).start()
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_luks_volume()
@@ -291,11 +301,14 @@ def test_luks_precheck_encrypted_luks_error(mocked_call, capsys):
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
 
+    mocked_exit.stop()
+    mock_subp.stop()
+
 
 def test_safe_check_call(capsys):
     submission = export.SDExport("testfile", TEST_CONFIG)
     submission.safe_check_call(['ls'], "this will work")
-    mocked_exit = mock.patch("export.exit_gracefully", return_value=0)
+    mocked_exit = mock.patch("export.exit_gracefully", return_value=0).start()
     expected_message = "uh oh!!!!"
     with pytest.raises(SystemExit) as sysexit:
         submission.safe_check_call(['ls', 'kjdsfhkdjfh'], expected_message)
@@ -303,3 +316,5 @@ def test_safe_check_call(capsys):
     assert sysexit.value.code == 0
     captured = capsys.readouterr()
     assert captured.err == "{}\n".format(expected_message)
+
+    mocked_exit.stop()
