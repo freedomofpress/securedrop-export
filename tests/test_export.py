@@ -257,7 +257,8 @@ def test_luks_precheck_encrypted_single_part(mocked_call, capsys):
 
     with pytest.raises(SystemExit) as sysexit:
         submission.check_luks_volume()
-        mocked_exit.assert_called_once_with(expected_message)
+
+    mocked_exit.assert_called_once_with(expected_message)
     assert sysexit.value.code == 0
 
 
