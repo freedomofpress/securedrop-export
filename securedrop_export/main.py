@@ -2,6 +2,8 @@ import logging
 
 from securedrop_export import export
 from securedrop_export.export import ExportStatus
+from securedrop_export.print.actions import PrintExportAction, PrintTestPageAction
+from securedrop_export.usb.actions import USBDiskTestAction, USBExportAction, USBTestAction
 
 logger = logging.getLogger(__name__)
 
@@ -14,42 +16,18 @@ def __main__(submission):
     except Exception:
         submission.exit_gracefully(ExportStatus.ERROR_METADATA_PARSING.value)
 
-    if submission.archive_metadata.is_valid():
-        if submission.archive_metadata.export_method == "usb-test":
-            logging.info('Export archive is usb-test')
-            submission.check_usb_connected(exit=True)
-        elif submission.archive_metadata.export_method == "disk":
-            logging.info('Export archive is disk')
-            # check_usb_connected looks for the drive, sets the drive to use
-            submission.check_usb_connected()
-            logging.info('Unlocking volume')
-            # exports all documents in the archive to luks-encrypted volume
-            submission.unlock_luks_volume(submission.archive_metadata.encryption_key)
-            logging.info('Mounting volume')
-            submission.mount_volume()
-            logging.info('Copying submission to drive')
-            submission.copy_submission()
-        elif submission.archive_metadata.export_method == "disk-test":
-            logging.info('Export archive is disk-test')
-            # check_usb_connected looks for the drive, sets the drive to use
-            submission.check_usb_connected()
-            submission.check_luks_volume()
-        elif submission.archive_metadata.export_method == "printer":
-            logging.info('Export archive is printer')
-            # prints all documents in the archive
-            logging.info('Searching for printer')
-            printer_uri = submission.get_printer_uri()
-            logging.info('Installing printer drivers')
-            printer_ppd = submission.install_printer_ppd(printer_uri)
-            logging.info('Setting up printer')
-            submission.setup_printer(printer_uri, printer_ppd)
-            logging.info('Printing files')
-            submission.print_all_files()
-        elif submission.archive_metadata.export_method == "printer-test":
-            # Prints a test page to ensure the printer is functional
-            printer_uri = submission.get_printer_uri()
-            printer_ppd = submission.install_printer_ppd(printer_uri)
-            submission.setup_printer(printer_uri, printer_ppd)
-            submission.print_test_page()
-    else:
+    if not submission.archive_metadata.is_valid():
         submission.exit_gracefully(ExportStatus.ERROR_ARCHIVE_METADATA.value)
+
+    if submission.archive_metadata.export_method == "usb-test":
+        action = USBTestAction(submission)
+    elif submission.archive_metadata.export_method == "disk":
+        action = USBExportAction(submission)
+    elif submission.archive_metadata.export_method == "disk-test":
+        action = USBDiskTestAction(submission)
+    elif submission.archive_metadata.export_method == "printer":
+        action = PrintExportAction(submission)
+    elif submission.archive_metadata.export_method == "printer-test":
+        action = PrintTestPageAction(submission)
+
+    action.run()
