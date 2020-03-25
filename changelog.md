@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+  * Change Brother printer driver/PPD
+
 ## 0.2.2
 
   * Update mimetype handling
