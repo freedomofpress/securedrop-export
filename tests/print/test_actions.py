@@ -86,7 +86,7 @@ def test_install_printer_ppd_brother(mocker):
     submission = export.SDExport("testfile", TEST_CONFIG)
     action = PrintExportAction(submission)
     ppd = action.install_printer_ppd("usb://Brother/HL-L2320D%20series?serial=A00000A000000")
-    assert ppd == "/usr/share/cups/model/br7030.ppd"
+    assert ppd == "/usr/share/ppd/cupsfilters/pxlmono.ppd"
 
 
 def test_install_printer_ppd_error_no_driver(mocker):

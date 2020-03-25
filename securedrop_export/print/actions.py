@@ -10,8 +10,8 @@ from securedrop_export.export import ExportAction
 
 PRINTER_NAME = "sdw-printer"
 PRINTER_WAIT_TIMEOUT = 60
-BRLASER_DRIVER = "/usr/share/cups/drv/brlaser.drv"
-BRLASER_PPD = "/usr/share/cups/model/br7030.ppd"
+BRLASER_DRIVER = "/usr/share/cups/drv/cupsfilters.drv"
+BRLASER_PPD = "/usr/share/ppd/cupsfilters/pxlmono.ppd"
 LASERJET_DRIVER = "/usr/share/cups/drv/hpcups.drv"
 LASERJET_PPD = "/usr/share/cups/model/hp-laserjet_6l.ppd"
 
