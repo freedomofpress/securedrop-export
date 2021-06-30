@@ -98,24 +98,25 @@ class DiskAction(ExportAction):
             command=["sudo", "cryptsetup", "isLuks", self.device],
             error_message=ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value
         )
+
+        # get the encrypted device name
+        self.set_extracted_device_name()
+        luks_header = subprocess.check_output(["sudo", "cryptsetup", "luksDump", self.device])
+        luks_header_list = luks_header.decode('utf-8').split('\n')
+        for line in luks_header_list:
+            items = line.split('\t')
+            if 'UUID' in items[0]:
+                self.encrypted_device = 'luks-' + items[1]
+
+        # the luks device is already unlocked
+        if os.path.exists(os.path.join('/dev/mapper/', self.encrypted_device)):
+            logger.debug('Device already unlocked')
+            self.submission.exit_gracefully(ExportStatus.USB_DECRYPTED.value)
+
         self.submission.exit_gracefully(ExportStatus.USB_ENCRYPTED.value)
 
     def unlock_luks_volume(self, encryption_key):
         try:
-            # get the encrypted device name
-            self.set_extracted_device_name()
-            luks_header = subprocess.check_output(["sudo", "cryptsetup", "luksDump", self.device])
-            luks_header_list = luks_header.decode('utf-8').split('\n')
-            for line in luks_header_list:
-                items = line.split('\t')
-                if 'UUID' in items[0]:
-                    self.encrypted_device = 'luks-' + items[1]
-
-            # the luks device is already unlocked
-            if os.path.exists(os.path.join('/dev/mapper/', self.encrypted_device)):
-                logger.debug('Device already unlocked')
-                return
-
             logger.debug('Unlocking luks volume {}'.format(self.encrypted_device))
             p = subprocess.Popen(
                 ["sudo", "cryptsetup", "luksOpen", self.device, self.encrypted_device],
