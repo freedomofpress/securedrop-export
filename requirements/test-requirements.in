@@ -1,7 +1,7 @@
 flake8
 importlib-metadata  # otherwise introduced unpinned via flake8
 pathlib2  # required by pytest for python 3.5
-pip-tools
+pip-tools==6.2.0
 py>=1.9.0
 pytest
 pytest-cov

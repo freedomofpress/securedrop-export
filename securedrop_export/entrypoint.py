@@ -8,7 +8,7 @@ from logging.handlers import TimedRotatingFileHandler, SysLogHandler
 from securedrop_export import __version__
 from securedrop_export import export
 from securedrop_export import main
-from securedrop_export.utils import safe_mkdir
+from secure_fs import safe_mkdir
 
 CONFIG_PATH = "/etc/sd-export-config.json"
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), ".securedrop_export")

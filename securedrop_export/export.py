@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 from securedrop_export.exceptions import ExportStatus
-from securedrop_export.utils import safe_extractall
+from secure_fs import safe_extractall
 
 logger = logging.getLogger(__name__)
 

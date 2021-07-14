@@ -10,10 +10,11 @@ safety: ## Runs `safety check` to check python dependencies for vulnerabilities
 
 .PHONY: update-pip-requirements
 update-pip-requirements: ## Updates all Python requirements files via pip-compile.
-	pip-compile --generate-hashes --output-file requirements/test-requirements.txt requirements/test-requirements.in
+	pip-compile --verbose --rebuild --generate-hashes --annotate --allow-unsafe --output-file "requirements/test-requirements.txt" "requirements/requirements.in" "requirements/test-requirements.in"
+	pip-compile --verbose --rebuild --generate-hashes --annotate --output-file "requirements/requirements.txt" "requirements/requirements.in"
 
 .PHONY: check
-check: lint semgrep test  ## Run linter and tests
+check: lint test  ## Run linter and tests
 
 TESTS ?= tests
 .PHONY: test
@@ -23,21 +24,6 @@ test:  ## Run tests
 .PHONY: lint
 lint:  ## Run linter
 	flake8 securedrop_export/ tests/
-
-SEMGREP_FLAGS := --exclude "tests/" --error --strict --verbose
-
-.PHONY: semgrep
-semgrep:semgrep-community semgrep-local
-
-.PHONY: semgrep-community
-semgrep-community:
-	@echo "Running semgrep with semgrep.dev community rules..."
-	@semgrep $(SEMGREP_FLAGS) --config "p/r2c-security-audit" --config "p/r2c-ci"
-
-.PHONY: semgrep-local
-semgrep-local:
-	@echo "Running semgrep with local rules..."
-	@semgrep $(SEMGREP_FLAGS) --config ".semgrep"
 
 # Explaination of the below shell command should it ever break.
 # 1. Set the field separator to ": ##" and any make targets that might appear between : and ##
