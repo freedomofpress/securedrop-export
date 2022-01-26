@@ -112,6 +112,7 @@ The supported device types for export are as follows, including the possible err
 
 2. `disk-test`: Preflight check that checks for LUKS-encrypted volume that returns:
     - `USB_ENCRYPTED` if a LUKS volume is attached to sd-devices
+    - `USB_ENCRYPTED_UNLOCKED` if an unlocked LUKS volume is attached to sd-devices (this means the drive was unlocked manually by the user)
     - `USB_ENCRYPTION_NOT_SUPPORTED` if a LUKS volume is not attached or there was any other error
     - `USB_DISK_ERROR`
 

@@ -2,6 +2,18 @@ from enum import Enum
 
 
 class ExportStatus(Enum):
+    """
+    Status codes representing the results of export- and print-related
+    actions, such as searching for compatible print and export devices.
+
+    Codes may represent error/failure states (such as 'ERROR_USB_NOT_CONNECTED')
+    or success states (such as 'USB_CONNECTED').
+
+    These codes are reported back to the SecureDrop Client (sd-app) via RPC.
+
+    Warning: do not make changes to the existing values without
+    reviewing `securedrop-client/securedrop_client/export.py`.
+    """
 
     # General errors
     ERROR_FILE_NOT_FOUND = 'ERROR_FILE_NOT_FOUND'
@@ -11,13 +23,14 @@ class ExportStatus(Enum):
     ERROR_USB_CONFIGURATION = 'ERROR_USB_CONFIGURATION'
     ERROR_GENERIC = 'ERROR_GENERIC'
 
-    # USB preflight related errors
+    # USB preflight related
     USB_CONNECTED = 'USB_CONNECTED'
     USB_NOT_CONNECTED = 'USB_NOT_CONNECTED'
     ERROR_USB_CHECK = 'ERROR_USB_CHECK'
 
-    # USB Disk preflight related errors
+    # USB Disk preflight related
     USB_ENCRYPTED = 'USB_ENCRYPTED'
+    USB_ENCRYPTED_UNLOCKED = 'USB_ENCRYPTED_UNLOCKED'
     USB_ENCRYPTION_NOT_SUPPORTED = 'USB_ENCRYPTION_NOT_SUPPORTED'
     USB_DISK_ERROR = 'USB_DISK_ERROR'
 
