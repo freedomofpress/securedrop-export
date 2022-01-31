@@ -90,7 +90,7 @@ class DiskAction(ExportAction):
 
     def check_luks_volume(self):
         # cryptsetup isLuks returns 0 if the device is a luks volume
-        # subprocess with throw if the device is not luks (rc !=0)
+        # subprocess will throw if the device is not luks (rc !=0)
         logger.info('Checking if volume is luks-encrypted')
         self.set_extracted_device_name()
         logger.debug("checking if {} is luks encrypted".format(self.device))
@@ -98,21 +98,59 @@ class DiskAction(ExportAction):
             command=["sudo", "cryptsetup", "isLuks", self.device],
             error_message=ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value
         )
-        self.submission.exit_gracefully(ExportStatus.USB_ENCRYPTED.value)
 
-    def unlock_luks_volume(self, encryption_key):
+        # See if the volume has already been unlocked. If it has, report back
+        # to avoid re-prompting the user for the passphrase.
+        # `self.device` is set by calling check_usb_connected() then
+        # set_extracted_device_name().
+        self._set_luks_device_name()
+        if self._is_volume_unlocked():
+            self.submission.exit_gracefully(ExportStatus.USB_ENCRYPTED_UNLOCKED.value)
+
+        else:
+            # It's encrypted but still locked
+            self.submission.exit_gracefully(ExportStatus.USB_ENCRYPTED.value)
+
+    def _set_luks_device_name(self) -> None:
+        """
+        Helper method to parse LUKS headers via `cryptsetup luksDump` and retrieve
+        the header matching device.
+
+        set_extracted_device_name() should be run first in order to extract and set a device name.
+        """
         try:
-            # get the encrypted device name
-            self.set_extracted_device_name()
             luks_header = subprocess.check_output(["sudo", "cryptsetup", "luksDump", self.device])
             luks_header_list = luks_header.decode('utf-8').split('\n')
             for line in luks_header_list:
                 items = line.split('\t')
                 if 'UUID' in items[0]:
                     self.encrypted_device = 'luks-' + items[1]
+        except subprocess.CalledProcessError:
+            self.submission.exit_gracefully(ExportStatus.USB_ENCRYPTION_NOT_SUPPORTED.value)
 
-            # the luks device is already unlocked
-            if os.path.exists(os.path.join('/dev/mapper/', self.encrypted_device)):
+    def _is_volume_unlocked(self) -> bool:
+        """
+        Helper method to detect whether LUKS drive is already unlocked.
+        Helper _set_luks_device_name() should be run first to determine
+        the target volume.
+
+        Args:
+            luks_device_name (str): Name of the target volume
+
+        Returns:
+            True if LUKS drive is already unlocked and mounted.
+
+        """
+        return os.path.exists(os.path.join('/dev/mapper/', self.encrypted_device))
+
+    def unlock_luks_volume(self, encryption_key):
+        try:
+            # get the encrypted device name
+            if not self.device:
+                self.set_extracted_device_name()
+            self._set_luks_device_name()
+
+            if self._is_volume_unlocked():
                 logger.debug('Device already unlocked')
                 return
 
