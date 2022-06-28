@@ -10,10 +10,6 @@ from securedrop_export.export import ExportAction
 
 PRINTER_NAME = "sdw-printer"
 PRINTER_WAIT_TIMEOUT = 60
-BRLASER_DRIVER = "/usr/share/cups/drv/brlaser.drv"
-BRLASER_PPD = "/usr/share/cups/model/br7030.ppd"
-LASERJET_DRIVER = "/usr/share/cups/drv/hpcups.drv"
-LASERJET_PPD = "/usr/share/cups/model/hp-laserjet_6l.ppd"
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +75,7 @@ class PrintAction(ExportAction):
                 )
 
             printer_uri = printers[0]
-            printer_ppd = self.install_printer_ppd(printer_uri)
-            self.setup_printer(printer_uri, printer_ppd)
+            self.setup_printer(printer_uri)
         except subprocess.CalledProcessError as e:
             logger.error(e)
             self.submission.exit_gracefully(ExportStatus.ERROR_GENERIC.value)
@@ -114,40 +109,7 @@ class PrintAction(ExportAction):
         logger.info("Printer {} is supported".format(printer_uri))
         return printer_uri
 
-    def install_printer_ppd(self, uri):
-        if not any(x in uri for x in ("Brother", "LaserJet")):
-            logger.error(
-                "Cannot install printer ppd for unsupported printer: {}".format(uri)
-            )
-            self.submission.exit_gracefully(
-                msg=ExportStatus.ERROR_PRINTER_NOT_SUPPORTED.value
-            )
-            return
-
-        if "Brother" in uri:
-            printer_driver = BRLASER_DRIVER
-            printer_ppd = BRLASER_PPD
-        elif "LaserJet" in uri:
-            printer_driver = LASERJET_DRIVER
-            printer_ppd = LASERJET_PPD
-
-        # Compile and install drivers that are not already installed
-        if not os.path.exists(printer_ppd):
-            logger.info("Installing printer drivers")
-            self.submission.safe_check_call(
-                command=[
-                    "sudo",
-                    "ppdc",
-                    printer_driver,
-                    "-d",
-                    "/usr/share/cups/model/",
-                ],
-                error_message=ExportStatus.ERROR_PRINTER_DRIVER_UNAVAILABLE.value,
-            )
-
-        return printer_ppd
-
-    def setup_printer(self, printer_uri, printer_ppd):
+    def setup_printer(self, printer_uri):
         # Add the printer using lpadmin
         logger.info("Setting up printer {}".format(self.printer_name))
         self.submission.safe_check_call(
@@ -159,8 +121,6 @@ class PrintAction(ExportAction):
                 "-E",
                 "-v",
                 printer_uri,
-                "-P",
-                printer_ppd,
                 "-u",
                 "allow:user",
             ],
