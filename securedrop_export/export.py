@@ -76,7 +76,7 @@ class Metadata(object):
 
 class SDExport(object):
     def __init__(self, archive, config_path):
-        os.umask(0o077)
+        os.umask(0o022)
         self.archive = archive
         self.submission_dirname = os.path.basename(self.archive).split(".")[0]
         self.target_dirname = "sd-export-{}".format(
